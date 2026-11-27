@@ -1,6 +1,3 @@
-#include <ctype.h>
-#include <errno.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,16 +6,18 @@
 
 static int read_integer(const char *text, int *number)
 {
-    char *end;
-
-    if (isspace((unsigned char)text[0])) {
+    const char *digit = text;
+    if (*digit == '+' || *digit == '-') {
+        digit++;
+    }
+    if (*digit < '0' || *digit > '9') {
         return 0;
     }
 
-    errno = 0;
-    long value = strtol(text, &end, 10);
-    if (end == text || *end != '\0' || errno == ERANGE ||
-        value < INT_MIN || value > INT_MAX) {
+    char *end;
+    long long value = strtoll(text, &end, 10);
+
+    if (*end != '\0' || value < -2147483648LL || value > 2147483647LL) {
         return 0;
     }
 
@@ -29,41 +28,32 @@ static int read_integer(const char *text, int *number)
 int main(int argc, char *argv[])
 {
     int key;
-
     if (argc < 6 || (argc - 3) % 3 != 0 ||
         strcmp(argv[argc - 2], "-k") != 0 ||
         !read_integer(argv[argc - 1], &key)) {
-        fputs("Usage: practical-calc NUMBER OP NUMBER [...] -k KEY\n", stderr);
+        fputs("Использование: practical-calc ЧИСЛО ОПЕРАТОР ЧИСЛО [...] -k КЛЮЧ\n", stderr);
         return 1;
     }
 
     int count = (argc - 3) / 3;
-    long long *results = calloc((size_t)count, sizeof(*results));
-    if (results == NULL) {
-        fputs("Not enough memory\n", stderr);
-        return 1;
-    }
+    long long results[count];
 
     for (int i = 0; i < count; i++) {
-        int position = 1 + 3 * i;
-        const char *operation = argv[position + 1];
+        int arg = 1 + i * 3;
         int left, right;
+        const char *op = argv[arg + 1];
 
-        if (!read_integer(argv[position], &left) ||
-            !read_integer(argv[position + 2], &right) ||
-            strlen(operation) != 1 ||
-            !calculate(left, operation[0], right, &results[i])) {
-            fprintf(stderr, "Invalid expression %d\n", i + 1);
-            free(results);
+        if (!read_integer(argv[arg], &left) || !read_integer(argv[arg + 2], &right) ||
+            strlen(op) != 1 || !calculate(left, op[0], right, &results[i])) {
+            fprintf(stderr, "Ошибка в выражении %d\n", i + 1);
             return 1;
         }
     }
 
     for (int i = 0; i < count; i++) {
-        printf("%d: %lld\n", i + 1, results[i]);
+        printf("Результат %d: %lld\n", i + 1, results[i]);
     }
-    print_text(results, count, key);
 
-    free(results);
+    print_text(results, count, key);
     return 0;
 }
